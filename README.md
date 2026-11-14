@@ -39,3 +39,11 @@ pip install \
 
 Wheels are hosted as release assets on this repository and the indexes are
 regenerated automatically by the upstream project's CI on each tagged release.
+
+## Using it
+
+- [Best practices](BEST_PRACTICES.md) ([中文](BEST_PRACTICES.zh.md)) — how to
+  drive the package so that it is fast, stays within memory and fails loudly:
+  batching, candidate scoring, output mode, GPU memory, streaming, input
+  validation, failure handling and reproducibility, with measured numbers.
+- Full documentation (English and 中文): <https://loganylchen.github.io/krill/>
