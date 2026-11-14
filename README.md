@@ -33,6 +33,16 @@ pip install "krill==<ver>+cu122" --no-deps \
   --index-url https://loganylchen.github.io/krill-dist/cu122/simple/
 ```
 
+The GPU wheel also needs the CUDA 12 runtime library (`libcudart.so.12`) on the
+loader path; the driver alone is not enough (`import krill` fails with
+`ImportError: libcudart.so.12`). A CUDA 12 toolkit install provides it. Without
+a toolkit, take it from PyPI:
+
+```sh
+pip install "nvidia-cuda-runtime-cu12==12.2.*"
+export LD_LIBRARY_PATH="$(python -c 'import nvidia.cuda_runtime as m; print(list(m.__path__)[0])')/lib:$LD_LIBRARY_PATH"
+```
+
 The optional file helpers need `pyslow5` and `pyfastx`; install them directly
 from PyPI (`pip install pyslow5 pyfastx`).
 

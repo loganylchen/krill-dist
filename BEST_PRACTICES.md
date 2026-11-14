@@ -25,7 +25,7 @@ numbers will differ; the ratios are the point.
 | Filter invalid reads **before** batching | one invalid read raises for the whole call |
 | Check `status == 0` on every result | failed reads are returned, not dropped |
 | Use `align_stream` with its default single lane for workloads that do not fit in memory | bounded memory; a second lane only pays off with many spare cores |
-| Fix the device, `batch_size` and input order when you need identical output | CPU and GPU results are close but not identical: a few percent of reads differ |
+| Run on the CPU when you need identical output from run to run | on the GPU a read's result can depend on its batch; CPU and GPU differ on a few percent of reads |
 
 ## 1. Batch your calls
 
@@ -69,8 +69,9 @@ out = krill.align_reads_variants(
 | `align_read_variants` once per read | 16.6 s (3.6×) |
 | one call per `(read, candidate)` | 51.3 s (11×) |
 
-Always pass `aligner=` when you call a helper more than once. Without it every
-call builds a new `Aligner`, and on the GPU each one allocates its memory again.
+Always pass `aligner=` when you call `align_read_variants` or
+`align_reads_variants` more than once. Without it every call builds a new
+`Aligner`, and on the GPU each one allocates its memory again.
 
 ## 3. Pick the output mode you need
 
@@ -204,9 +205,10 @@ non-zero `status` and empty arrays; its scalars are not meaningful.
 good = [r for r in results if r["status"] == 0]
 ```
 
-`align_blow5`, `align_reads_variants` and `align_stream` leave out a read whose
-signal is missing from the blow5, so compare the returned read ids with the ones
-you asked for. `align_read_variants` raises `KeyError` instead.
+`align_reads_variants` and `align_stream` leave out a read whose signal is
+missing from the blow5, so compare the returned read ids with the ones you asked
+for. `align_blow5` leaves it out too, but its results carry no read id.
+`align_read_variants` raises `KeyError` instead.
 
 ## 7. Handle failures
 
@@ -232,11 +234,13 @@ for chunk in chunks:
     save(results)                            # a failure costs one chunk
 ```
 
-Process long runs in chunks and save as you go, as above or with
-`align_stream`, so a failure never costs more than the current chunk.
+Process long runs in chunks and save as you go, as above, so a failure costs one
+chunk. `align_stream` keeps what it has already returned, but work it had read
+ahead from your workload is lost when it raises. Restart it with every item you
+have not saved, not by continuing the same iterator.
 
-The engine writes a progress line per batch to stderr (`[align_cuda] Load ...`).
-Those lines are informational.
+On the GPU the engine writes a progress line per batch to stderr
+(`[align_cuda] Load ...`). Those lines are informational.
 
 ## 8. Reproducibility
 
@@ -251,9 +255,11 @@ Those lines are informational.
   derived from it; on 7 of them some events were also assigned to a different
   k-mer.
 
-If you need identical output from run to run, keep the device, `batch_size`,
-`cuda_mem_frac` and input order fixed and use a single lane. If differences of
-that size are acceptable, use whatever is fastest.
+If you need identical output from run to run, the simplest way is to run on the
+CPU. On the GPU, keep the batches the same (the same calls, `batch_size` and
+input order, a single lane) and also the GPU memory the `Aligner` gets, which
+depends on `cuda_mem_frac` and on how much memory was free when it was built. If
+differences of that size are acceptable, use whatever is fastest.
 
 ## 9. Other features
 
@@ -269,9 +275,11 @@ that size are acceptable, use whatever is fastest.
 
 ## 10. SLURM and containers
 
-- Request the cores you want (`--cpus-per-task`); the automatic thread count
-  follows the allocation.
-- A CPU quota without a cpuset (`docker --cpus=4`) is not visible to krill. Pass
-  `num_thread` explicitly in that case.
+- The automatic thread count is the number of CPUs the process may run on. A
+  SLURM job that is bound to its cores (`--cpus-per-task`) gets the right number.
+- A Docker container does not inherit that binding, and a CPU quota
+  (`docker --cpus=4`) is not visible to krill: in a 4-CPU job on a 128-core host
+  a container saw 128 CPUs, and 4 with `--cpuset-cpus=0-3`. Use `--cpuset-cpus`
+  or pass `num_thread`.
 - Give each GPU to one process, and run one GPU `Aligner` on it unless you set
   `cuda_mem_frac`.

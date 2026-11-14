@@ -23,7 +23,7 @@ English: [BEST_PRACTICES.md](BEST_PRACTICES.md) · Full documentation: <https://
 | 组 batch **之前**先过滤掉不合法的 read | 一条不合法的 read 会让整次调用报错 |
 | 对每个结果检查 `status == 0` | 失败的 read 会被返回，而不是被丢掉 |
 | 内存装不下的工作量用 `align_stream`，保持默认的单通道 | 内存有界；第二条通道只有在空闲核很多时才划算 |
-| 需要完全一致的输出时，固定设备、`batch_size` 和输入顺序 | CPU 与 GPU 的结果接近但不完全相同：百分之几的 read 会有差异 |
+| 需要每次运行输出完全一致时，用 CPU 跑 | GPU 上一条 read 的结果可能取决于它所在的 batch；CPU 与 GPU 在百分之几的 read 上有差异 |
 
 ## 1. 批量调用
 
@@ -66,8 +66,8 @@ out = krill.align_reads_variants(
 | 每条 read 调一次 `align_read_variants` | 16.6 秒（3.6 倍） |
 | 每个 `(read, 候选)` 调一次 | 51.3 秒（11 倍） |
 
-只要某个 helper 会被调用不止一次，就一定要传 `aligner=`。不传的话每次调用都会新建一个
-`Aligner`，在 GPU 上每次都要重新分配显存。
+`align_read_variants` 或 `align_reads_variants` 只要会被调用不止一次，就一定要传
+`aligner=`。不传的话每次调用都会新建一个 `Aligner`，在 GPU 上每次都要重新分配显存。
 
 ## 3. 按需选择输出模式
 
@@ -189,9 +189,9 @@ results = aligner.align([r for r in reads if usable(r)])
 good = [r for r in results if r["status"] == 0]
 ```
 
-`align_blow5`、`align_reads_variants` 和 `align_stream` 会略过 blow5 里找不到信号的
-read，所以请把返回的 read id 和你请求的对一下。`align_read_variants` 遇到这种情况则抛
-`KeyError`。
+`align_reads_variants` 和 `align_stream` 会略过 blow5 里找不到信号的 read，所以请把
+返回的 read id 和你请求的对一下。`align_blow5` 也会略过，但它的结果里不带 read id。
+`align_read_variants` 遇到这种情况则抛 `KeyError`。
 
 ## 7. 处理失败
 
@@ -215,11 +215,12 @@ for chunk in chunks:
     save(results)                            # 一次失败只损失一个块
 ```
 
-长时间的运行请像上面这样分块处理并边算边存（或者用 `align_stream`），这样一次失败的
-损失不会超过当前这一块。
+长时间的运行请像上面这样分块处理并边算边存，这样一次失败只损失一个块。`align_stream`
+已经返回的结果不受影响，但它出错时，已经从你的 workload 里预读出来、还没返回的那部分
+工作会丢掉。重启时请把所有还没存下结果的条目重新交给它，不要接着用原来的迭代器。
 
-引擎每个 batch 会往 stderr 写一行进度（`[align_cuda] Load ...`），这些只是信息，不是
-错误。
+在 GPU 上，引擎每个 batch 会往 stderr 写一行进度（`[align_cuda] Load ...`），这些只是
+信息，不是错误。
 
 ## 8. 可复现性
 
@@ -230,12 +231,14 @@ for chunk in chunks:
   这 13 条的每条 read 缩放参数都有轻微差异（`scale` 的中位差异为 0.02%，最大 0.1%），
   由它推出的数值也随之不同；其中 7 条还有部分事件被分到了不同的 k-mer。
 
-如果需要每次运行输出完全一致，请固定设备、`batch_size`、`cuda_mem_frac` 和输入顺序，
-并使用单通道。如果这种程度的差异可以接受，就用最快的配置。
+如果需要每次运行输出完全一致，最简单的办法是用 CPU 跑。在 GPU 上，要保持 batch 不变
+（同样的调用、`batch_size` 和输入顺序，单通道），还要保持 `Aligner` 拿到的显存不变——
+它取决于 `cuda_mem_frac` 以及构造时设备上有多少空闲显存。如果这种程度的差异可以接受，
+就用最快的配置。
 
 ## 9. 其他功能
 
-- **read 的切片。** 要让一条 read 的局部对齐与整条 read 的结果一致，把整条 read 的
+- **read 的切片。** 要让一条 read 的局部对齐与整条 read 的结果尽量吻合，把整条 read 的
   `init_scale` / `init_shift` 传进去
   （见[对一段 read 切片做对齐](https://loganylchen.github.io/krill/zh/parameters/#read)）。
 - **poly(A)。** 用 `polya=True` 构造 `Aligner`，只在 `polya_qc == "PASS"` 时信任
@@ -246,8 +249,10 @@ for chunk in chunks:
 
 ## 10. SLURM 与容器
 
-- 申请你需要的核数（`--cpus-per-task`）；自动线程数会跟随分配到的核数。
-- 没有 cpuset 的 CPU 配额（`docker --cpus=4`）krill 看不到，这种情况请显式传
-  `num_thread`。
+- 自动线程数等于进程被允许运行的 CPU 数。被绑定到所分配核上的 SLURM 作业
+  （`--cpus-per-task`）会得到正确的数字。
+- Docker 容器不会继承这种绑定，CPU 配额（`docker --cpus=4`）krill 也看不到：在 128 核
+  主机上一个 4 核的作业里，容器看到的是 128 个 CPU，加了 `--cpuset-cpus=0-3` 才是 4 个。
+  请使用 `--cpuset-cpus` 或显式传 `num_thread`。
 - 一块 GPU 只给一个进程用，并且在上面只跑一个 GPU `Aligner`，除非你设置了
   `cuda_mem_frac`。
