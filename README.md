@@ -1,41 +1,40 @@
-# f5c_rna-dist
+# krill-dist
 
-Public binary-wheel distribution for **f5c_rna** — in-memory direct-RNA
+Public binary-wheel distribution for **krill** — in-memory direct-RNA
 eventalign (RNA002 / RNA004), CPU + GPU.
 
 The engine source (C/C++/CUDA) lives in a private repository. **Only compiled
-wheels are published here** — the `.whl` files contain machine code, not source.
+wheels, not engine source, are published here** as release assets — the `.whl`
+files contain machine code, not source.
 
 ## Install
 
 This repo serves two [PEP 503](https://peps.python.org/pep-0503/) simple indexes
 via GitHub Pages. Like the PyTorch download channels, **the index URL selects the
-backend** — the CPU and GPU wheels share a version, so you pick one by index, not
-by version specifier.
+backend** — the CPU and GPU wheels share a base release version, so you pick one
+by index; the GPU wheel additionally requires a `+cu122` version pin.
+
+> **Install krill from these indexes only.** `krill` on public PyPI is an
+> unrelated project. pip prefers the highest version across all the indexes it
+> is given, so adding `--extra-index-url https://pypi.org/simple/` (or using the
+> `krill[...]` extras form) can silently install the wrong package. Install the
+> runtime dependencies from PyPI first, then krill with `--no-deps`.
 
 ```sh
 # CPU (portable manylinux wheel) — the default index
-pip install --index-url https://loganylchen.github.io/f5c_rna-dist/simple/ f5c_rna
+pip install numpy scipy
+pip install krill --no-deps \
+  --index-url https://loganylchen.github.io/krill-dist/simple/
 
-# GPU (CUDA 12.2 build; needs a matching NVIDIA driver) — the opt-in index
-pip install --index-url https://loganylchen.github.io/f5c_rna-dist/cu122/simple/ f5c_rna
+# GPU (CUDA 12.2 build; needs an NVIDIA driver >= 535) — the opt-in index.
+# Replace <ver> with a released version, for example 0.1.6.
+pip install numpy scipy
+pip install "krill==<ver>+cu122" --no-deps \
+  --index-url https://loganylchen.github.io/krill-dist/cu122/simple/
 ```
 
-To resolve dependencies from PyPI at the same time, add PyPI as an extra index:
-
-```sh
-# CPU
-pip install \
-  --index-url https://loganylchen.github.io/f5c_rna-dist/simple/ \
-  --extra-index-url https://pypi.org/simple/ \
-  f5c_rna
-
-# GPU
-pip install \
-  --index-url https://loganylchen.github.io/f5c_rna-dist/cu122/simple/ \
-  --extra-index-url https://pypi.org/simple/ \
-  f5c_rna
-```
+The optional file helpers need `pyslow5` and `pyfastx`; install them directly
+from PyPI (`pip install pyslow5 pyfastx`).
 
 Wheels are hosted as release assets on this repository and the indexes are
 regenerated automatically by the upstream project's CI on each tagged release.
