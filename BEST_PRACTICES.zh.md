@@ -9,7 +9,7 @@ English: [BEST_PRACTICES.md](BEST_PRACTICES.md) · Full documentation: <https://
 绝对数值会不同，重点是倍数关系。
 
 > **版本说明。** `cuda_mem_frac`、按 CPU 亲和性取自动线程数、GPU 运行期出错不再
-> 终止进程，这三项在 0.1.6 之后的版本里才有。在 0.1.6 及更早版本上，只要进程运行在
+> 终止进程，这三项从 0.1.7 起才有。在 0.1.6 及更早版本上，只要进程运行在
 > CPU 限额下就请显式传 `num_thread`，并把 GPU 运行期错误当作会终止进程来处理。
 
 ## 简要版
