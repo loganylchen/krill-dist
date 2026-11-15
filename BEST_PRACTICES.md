@@ -10,8 +10,8 @@ CPU cores; the one figure taken with all 128 cores says so. Your absolute
 numbers will differ; the ratios are the point.
 
 > **Version note.** `cuda_mem_frac`, the affinity-aware automatic thread count
-> and the non-fatal GPU failure handling ship in the release after 0.1.6. On
-> 0.1.6 and earlier, pass `num_thread` explicitly whenever the process runs
+> and the non-fatal GPU failure handling are available from 0.1.7. On 0.1.6 and
+> earlier, pass `num_thread` explicitly whenever the process runs
 > under a CPU limit, and treat a GPU runtime error as fatal to the process.
 
 ## The short version
