@@ -219,7 +219,14 @@ for. `align_blow5` leaves it out too, but its results carry no read id.
   fix or drop the offending input; retrying the same input fails again.
 - **`RuntimeError: GPU runtime failure ...`** means the GPU state of that
   `Aligner` is gone. The call returns no results and the `Aligner` refuses
-  further work. Build a new one, or continue on the CPU:
+  further work. Build a new one, or continue on the CPU. From 0.1.8 the failed
+  `Aligner` gives its GPU memory back at the moment of failure, so a new GPU
+  `Aligner` can be built straight away. On 0.1.7, destroy the failed one first
+  (`del aligner`): a GPU `Aligner` built while the failed object still exists can
+  fail on its next call. If building the new GPU `Aligner` itself raises
+  (`GPU initialisation error`; the reason is on stderr), continue on the CPU.
+  The GPU may have become unusable for this process; if it stays that way,
+  restart the process.
 
 ```python
 aligner = krill.Aligner(pore="rna004")

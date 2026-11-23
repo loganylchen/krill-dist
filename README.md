@@ -44,7 +44,7 @@ pip install krill --no-deps \
   --index-url https://loganylchen.github.io/krill-dist/simple/
 
 # GPU (CUDA 12.2 build; needs an NVIDIA driver >= 535) — the opt-in index.
-# Replace <ver> with a released version, for example 0.1.7.
+# Replace <ver> with a released version, for example 0.1.8.
 pip install numpy scipy
 pip install "krill==<ver>+cu122" --no-deps \
   --index-url https://loganylchen.github.io/krill-dist/cu122/simple/
