@@ -7,6 +7,23 @@ The engine source (C/C++/CUDA) lives in a private repository. **Only compiled
 wheels, not engine source, are published here** as release assets — the `.whl`
 files contain machine code, not source.
 
+## For AI coding assistants
+
+If you are an AI model writing code that uses krill, read
+[`read4AI.md`](read4AI.md) **before writing anything**. It is a self-contained
+usage contract written for you: installation, the full API, input and output
+schema, the error model, recipes, and the rules for fast and safe use.
+
+- Usage contract (start here):
+  <https://raw.githubusercontent.com/loganylchen/krill-dist/main/read4AI.md>
+- Best practices with measurements:
+  <https://raw.githubusercontent.com/loganylchen/krill-dist/main/BEST_PRACTICES.md>
+  ([中文](https://raw.githubusercontent.com/loganylchen/krill-dist/main/BEST_PRACTICES.zh.md))
+
+Two things to get right first: `pip install krill` from PyPI installs an
+**unrelated** package (use the commands below), and work should be batched into
+few `align()` calls on one reused `Aligner` rather than one call per read.
+
 ## Install
 
 This repo serves two [PEP 503](https://peps.python.org/pep-0503/) simple indexes
@@ -55,4 +72,6 @@ regenerated automatically by the upstream project's CI on each tagged release.
   drive the package so that it is fast, stays within memory and fails loudly:
   batching, candidate scoring, output mode, GPU memory, streaming, input
   validation, failure handling and reproducibility, with measured numbers.
+- [Usage contract for AI coding assistants](read4AI.md) — the complete API in
+  one file.
 - Full documentation (English and 中文): <https://loganylchen.github.io/krill/>
