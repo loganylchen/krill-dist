@@ -7,7 +7,7 @@
 > key, dtype, and semantic below is verified against the source. If something is
 > not stated here, do not assume it exists.
 >
-> Describes krill **0.1.7**. Public raw copy:
+> Describes krill **0.1.8**. Public raw copy:
 > <https://raw.githubusercontent.com/loganylchen/krill-dist/main/read4AI.md>.
 > Read §10 (rules for fast and safe use) before writing code; the measurements
 > behind those rules are in
@@ -78,7 +78,7 @@ pip install krill --no-deps --index-url https://loganylchen.github.io/krill-dist
 
 # GPU wheel (CUDA 12.2). The +cu122 local-version label is REQUIRED to get the
 # GPU build (PyPI has no +cu122, so this pin is self-protecting).
-pip install "krill==0.1.7+cu122" --no-deps \
+pip install "krill==0.1.8+cu122" --no-deps \
     --index-url https://loganylchen.github.io/krill-dist/cu122/simple/
 
 # The GPU wheel needs the CUDA 12 runtime library (libcudart.so.12) on the loader
@@ -94,7 +94,7 @@ krill.built_with_cuda      # bool ATTRIBUTE (not a call): True if compiled with 
 krill.gpu_device_count()   # CALL: >0 device count, 0 none, -1 CPU-only build
 
 from importlib.metadata import version
-version("krill")           # "0.1.7" or "0.1.7+cu122"; there is no krill.__version__
+version("krill")           # "0.1.8" or "0.1.8+cu122"; there is no krill.__version__
 ```
 
 Trap: `built_with_cuda` is a bool attribute; `gpu_device_count` is a function.
@@ -334,7 +334,7 @@ does **not** crash the interpreter on bad input or on a GPU fault. Two layers.
 | `KeyError` | a required key is missing from a read dict | fix the input |
 | `RuntimeError: Unable to cast ...` | a field has the wrong type (e.g. a `str` where a number is expected) | fix the input |
 | `RuntimeError: Aligner.align() is already running ...` | two threads used one `Aligner` | one `Aligner` per thread; the object is still usable |
-| `RuntimeError: GPU runtime failure during align() ...` | a CUDA error or GPU allocation failure during the run | this call produced **no results** and this `Aligner` refuses further work: build a new `Aligner`, or continue with `use_gpu=False` (recipe in §8) |
+| `RuntimeError: GPU runtime failure during align() ...` | a CUDA error or GPU allocation failure during the run | this call produced **no results** and this `Aligner` refuses further work: build a new `Aligner`, or continue with `use_gpu=False` (recipe in §8). Its GPU memory is released at the moment of failure, so a new GPU `Aligner` can be built at once (on 0.1.7 only: `del` the failed one first, or the new one can fail on its next call). If building the new GPU `Aligner` raises (`GPU initialisation error`; reason on stderr), continue on the CPU; the GPU may be unusable for this process, and if it stays so, restart the process |
 | `RuntimeError` (other) | construction failed (e.g. `"GPU initialisation error; see stderr"`) or out of memory building a batch | not retryable as is |
 | `TypeError` | calling `built_with_cuda` as a function; a malformed `start` spec in the file helpers | fix the call |
 

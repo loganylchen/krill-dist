@@ -200,7 +200,12 @@ good = [r for r in results if r["status"] == 0]
   `RuntimeError: Unable to cast ...`，helper 在候选序列的写法不对时会抛 `TypeError`。
   这几种情况都要修正或丢弃出问题的输入；用同样的输入重试只会再次失败。
 - **`RuntimeError: GPU runtime failure ...`** 表示这个 `Aligner` 的 GPU 状态已经失效。
-  这次调用不返回任何结果，这个 `Aligner` 也拒绝继续工作。新建一个，或者改用 CPU 继续：
+  这次调用不返回任何结果，这个 `Aligner` 也拒绝继续工作。新建一个，或者改用 CPU 继续。
+  从 0.1.8 起，出故障的 `Aligner` 在故障发生的当下就归还显存，所以可以马上新建 GPU
+  `Aligner`。在 0.1.7 上，请先销毁出故障的那个（`del aligner`）：它还存在时新建的 GPU
+  `Aligner`，下一次调用可能会失败。如果新建 GPU `Aligner` 本身就报错
+  （`GPU initialisation error`，原因见 stderr），请改用 CPU 继续。这时 GPU 对这个进程可能
+  已经不可用；如果一直如此，请重启进程。
 
 ```python
 aligner = krill.Aligner(pore="rna004")
