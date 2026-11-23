@@ -92,6 +92,9 @@ export LD_LIBRARY_PATH="$(python -c 'import nvidia.cuda_runtime as m; print(list
 import krill
 krill.built_with_cuda      # bool ATTRIBUTE (not a call): True if compiled with CUDA
 krill.gpu_device_count()   # CALL: >0 device count, 0 none, -1 CPU-only build
+
+from importlib.metadata import version
+version("krill")           # "0.1.7" or "0.1.7+cu122"; there is no krill.__version__
 ```
 
 Trap: `built_with_cuda` is a bool attribute; `gpu_device_count` is a function.
@@ -451,6 +454,7 @@ krill.align_stream(blow5_path, workload, *, pore="rna004", lanes="auto",
     -> iterator of (read_id, list[dict])
     # workload: any iterable/generator of (read_id, sequences) or
     #           (read_id, sequences, start); `sequences` / `start` as above.
+    # "variant_label" is always a str: str(dict_key), or "0", "1", ... for a list.
     # Each result dict carries "variant_label", "read_id" and a "read_index" in
     # global input order. Groups are per read id: if the same read id appears in
     # several workload items, its results may arrive merged into one group or as
@@ -458,6 +462,9 @@ krill.align_stream(blow5_path, workload, *, pore="rna004", lanes="auto",
     # lanes: "auto" (ONE lane: GPU if usable, else CPU) | "gpu" | "cpu" | "gpu+cpu".
     # aligner_kwargs: forwarded to the Aligners it builds (hmm_confidence, polya,
     #                 batch_size, cuda_mem_frac, ...); not pore/use_gpu/num_thread.
+    # gpu_aligner / cpu_aligner: use your own Aligner for that lane instead (it can
+    #                 be reused across calls; aligner_kwargs and *_num_thread do not
+    #                 apply to it). Pass lanes="gpu" or lanes="cpu" explicitly with it.
     # chunk_pairs: (read, candidate) pairs per align() call; a read's candidates
     #              are never split, so one huge item makes one huge chunk.
 
@@ -466,7 +473,9 @@ krill.align_all(blow5_path, workload, **same_keywords) -> {read_id: list[dict]}
 ```
 
 If you stop iterating early, close the generator (`contextlib.closing(...)`) so
-its threads and the file handle are released. If it raises, results already
+its threads and the file handle are released. An exception from `align()` (§5,
+including `RuntimeError: GPU runtime failure ...`) is re-raised unchanged by the
+iterator. If it raises, results already
 yielded are complete and correct, but work it had read ahead is lost: restart
 with every item you have not saved, not by continuing the same iterator.
 
